@@ -10,9 +10,14 @@
 !            _______\/////////_______\/////////_____\///_____________\/////////_______________
 !            __________________________________________________________________________________
 !----------------------------------------------------------------------------------------------
-!>  subroutine input_files_cgns
-!>  last edit 2018-10-25
-!>  last edit by imhoy
+    !*************************************************************************!
+    !                                                                         !
+    !  subroutine:   force.F90                                                !
+    !                                                                         !
+    !  programmer:   liuxz                                                    !
+    !                                                                         !
+    !  update:       2019-1-7 23:04:10                                        !
+    !*************************************************************************!
 !----------------------------------------------------------------------------------------------
     subroutine force
         !>
@@ -41,7 +46,7 @@
         !>
         real(kind=dprec) cpc,const,&
                          cosa,sina,cosb,sinb
-        real(kind=dprec) fxyz(6,3)
+        real(kind=dprec) fxyz(6,3),fxyz_out(6,3)
         real(kind=dprec) clw,cdw,&
                          xc,yc,zc,xmc,ymc,zmc,&
                          fx,fy,fz,cx,cy,cz,&
@@ -79,6 +84,9 @@
             fxyz(ii,1) = 0.0
             fxyz(ii,2) = 0.0
             fxyz(ii,3) = 0.0
+            fxyz_out(ii,1) = 0.0
+            fxyz_out(ii,2) = 0.0
+            fxyz_out(ii,3) = 0.0
         end do
         !>
         !>
@@ -116,7 +124,8 @@
             if(n2p(nbl) .eq. myid)then
 #endif
 
-				if((level_mg(nbl) .eq. global_level .and. meshseqflags .eq. 0) .or. (level_mg(nbl) .eq. imeshseque .and. meshseqflags .ne. 0))then
+				if((level_mg(nbl) .eq. global_level .and. meshseqflags .eq. 0) &
+				&.or. (level_mg(nbl) .eq. imeshseque .and. meshseqflags .ne. 0))then
                     !>
                     !>
 					iblock  =>  mesh%blocks(nbl)
@@ -466,30 +475,14 @@
         !>
         !>
         !> reduce all the values
-!        call mpi_allreduce(fxyz,fxyz,6*3,mpi_double_precision,mpi_sum,mycomm,ierr)
-        call mpi_allreduce(fxyz(1,1),fxyz(1,1),1,mpi_double_precision,mpi_sum,mycomm,ierr)
-        call mpi_allreduce(fxyz(1,2),fxyz(1,2),1,mpi_double_precision,mpi_sum,mycomm,ierr)
-        call mpi_allreduce(fxyz(1,3),fxyz(1,3),1,mpi_double_precision,mpi_sum,mycomm,ierr)
+        call mpi_allreduce(fxyz,fxyz_out,18,mpi_double_precision,mpi_sum,mycomm,ierr)
         !>
-        call mpi_allreduce(fxyz(2,1),fxyz(2,1),1,mpi_double_precision,mpi_sum,mycomm,ierr)
-        call mpi_allreduce(fxyz(2,2),fxyz(2,2),1,mpi_double_precision,mpi_sum,mycomm,ierr)
-        call mpi_allreduce(fxyz(2,3),fxyz(2,3),1,mpi_double_precision,mpi_sum,mycomm,ierr)
         !>
-        call mpi_allreduce(fxyz(3,1),fxyz(3,1),1,mpi_double_precision,mpi_sum,mycomm,ierr)
-        call mpi_allreduce(fxyz(3,2),fxyz(3,2),1,mpi_double_precision,mpi_sum,mycomm,ierr)
-        call mpi_allreduce(fxyz(3,3),fxyz(3,3),1,mpi_double_precision,mpi_sum,mycomm,ierr)
-        !>
-        call mpi_allreduce(fxyz(4,1),fxyz(4,1),1,mpi_double_precision,mpi_sum,mycomm,ierr)
-        call mpi_allreduce(fxyz(4,2),fxyz(4,2),1,mpi_double_precision,mpi_sum,mycomm,ierr)
-        call mpi_allreduce(fxyz(4,3),fxyz(4,3),1,mpi_double_precision,mpi_sum,mycomm,ierr)
-        !>
-        call mpi_allreduce(fxyz(5,1),fxyz(5,1),1,mpi_double_precision,mpi_sum,mycomm,ierr)
-        call mpi_allreduce(fxyz(5,2),fxyz(5,2),1,mpi_double_precision,mpi_sum,mycomm,ierr)
-        call mpi_allreduce(fxyz(5,3),fxyz(5,3),1,mpi_double_precision,mpi_sum,mycomm,ierr)
-        !>
-        call mpi_allreduce(fxyz(6,1),fxyz(6,1),1,mpi_double_precision,mpi_sum,mycomm,ierr)
-        call mpi_allreduce(fxyz(6,2),fxyz(6,2),1,mpi_double_precision,mpi_sum,mycomm,ierr)
-        call mpi_allreduce(fxyz(6,3),fxyz(6,3),1,mpi_double_precision,mpi_sum,mycomm,ierr)
+        do ii =1,6
+            fxyz(ii,1) = fxyz_out(ii,1)
+            fxyz(ii,2) = fxyz_out(ii,2)
+            fxyz(ii,3) = fxyz_out(ii,3)
+        end do
         !>
         !>
         if(myid .eq. myhost)then
@@ -497,14 +490,6 @@
 
             cd =    fxyz(1,3)*cosa*cosb + fxyz(3,3)*sina*cosb - fxyz(2,3)*sinb
             cl =   -fxyz(1,3)*sina + fxyz(3,3)*cosa
-!            open(unit=700,file='ccfd.iter_force',form='formatted',status='unknown')
-!            !>
-!            !>
-!            if(ialph .eq. 0 )then
-!                write(700,'(i8,4e24.16)') icyc1,clw/a_ref,cdw/a_ref,fxyz(2,3)/a_ref,fxyz(5,3)/a_ref/c_ref
-!            else
-!                write(700,'(i8,4e24.16)') icyc1,clw/a_ref,cdw/a_ref,fxyz(3,3)/a_ref,fxyz(6,3)/a_ref/b_ref
-!            end if
 
 #if defined PMPI
         end if

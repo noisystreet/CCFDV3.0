@@ -50,13 +50,13 @@
                    ii,&
                    irange,jrange,krange,&
                    istore,jstore,kstore
-        integer :: nbl,ierr,ip,mytag,nd_src
+        integer :: nbl,ierr,ip,mytag,nd_src,i_size1to1_out
         !>
         !>
         real(kind = dprec)::error_l2,error,&
                             epson,&
                             r_tmp,&
-                            p_tmp
+                            p_tmp,error_l2_out
         real(kind = dprec),dimension(:),allocatable::ii_send_host
         real(kind = dprec):: start_t,&
                              finish_t,&
@@ -74,6 +74,8 @@
         epson  = 1.e-10
         iprint = 0
         error  = 0.0
+        i_size1to1_out  = 0
+
         if(restart .eq. 0) icyc_restart = 0
         !>
         !>
@@ -93,7 +95,8 @@
         call bc_cut_array_allocate()
         !>
         !>
-        call mpi_allreduce(i_size1to1,i_size1to1,1,mpi_integer,mpi_max,mycomm,ierr)
+        call mpi_allreduce(i_size1to1,i_size1to1_out,1,mpi_integer,mpi_max,mycomm,ierr)
+        i_size1to1 = i_size1to1_out
 #endif
         !>
         call initial
@@ -104,6 +107,7 @@ iterations:do icyc=1+icyc_restart,ncycle(imeshseque)+icyc_restart
             !>
             !>
             error_l2 = 0.0
+            error_l2_out    = 0.0
             !>
             !>
 #if defined PMPI
@@ -611,7 +615,8 @@ iterations:do icyc=1+icyc_restart,ncycle(imeshseque)+icyc_restart
             !>
             !>
 #if defined PMPI
-            call mpi_allreduce(error_l2,error_l2,1,mpi_double_precision,mpi_sum,mycomm,ierr)
+            call mpi_allreduce(error_l2,error_l2_out,1,mpi_double_precision,mpi_sum,mycomm,ierr)
+            error_l2 = error_l2_out
             !>
             !>
             !>**********send r,u,v,w,p to host  processor!***************
